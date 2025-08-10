@@ -1,15 +1,21 @@
 import { AudioMixer } from './components/audio-editor/AudioMixer';
 import { VideoGenerator } from './components/video-generator/VideoGenerator';
+import { VideoGeneratorUI } from './components/video-generator/VideoGeneratorUI';
 import { AudioProcessor } from './services/audio-processing/AudioProcessor';
 import { AudioProcessorUI } from './components/audio-editor/AudioProcessorUI';
 import { AITools } from './components/ai-tools/AITools';
+import { AudioVideoSync } from './services/video-processing/AudioVideoSync';
+import { VideoExporter } from './services/video-processing/VideoExporter';
 
 class PodcastFactory {
-  private audioMixer: AudioMixer;
-  private videoGenerator: VideoGenerator;
-  private audioProcessor: AudioProcessor;
-  private audioProcessorUI: AudioProcessorUI;
-  private aiTools: AITools;
+  private audioMixer!: AudioMixer;
+  private videoGenerator!: VideoGenerator;
+  private videoGeneratorUI!: VideoGeneratorUI;
+  private audioProcessor!: AudioProcessor;
+  private audioProcessorUI!: AudioProcessorUI;
+  private aiTools!: AITools;
+  private audioVideoSync!: AudioVideoSync;
+  private videoExporter!: VideoExporter;
   private currentTool: string = 'audio-mixer';
 
   constructor() {
@@ -23,7 +29,23 @@ class PodcastFactory {
     this.audioProcessorUI = new AudioProcessorUI();
     this.aiTools = new AITools();
 
+    // Initialize video services
+    this.audioVideoSync = new AudioVideoSync(
+      this.videoGenerator.getVideoProcessor(),
+      this.audioProcessor
+    );
+    this.videoExporter = new VideoExporter();
+
+    // Initialize video UI (will replace the basic UI in VideoGenerator)
+    this.videoGeneratorUI = new VideoGeneratorUI(this.videoGenerator, {
+      containerId: 'video-generator-panel',
+      showAdvancedSettings: true,
+      enablePresets: true,
+      enableEffects: true
+    });
+
     this.setupEventListeners();
+    this.setupVideoIntegration();
     this.showTool('audio-mixer');
   }
 
@@ -64,6 +86,10 @@ class PodcastFactory {
 
     document.getElementById('snap-toggle')?.addEventListener('click', () => {
       this.audioMixer.toggleSnap();
+    });
+
+    document.getElementById('generate-video-with-audio')?.addEventListener('click', () => {
+      this.generateVideoWithCurrentAudio();
     });
 
     // Connect audio mixer selection to processor UI
@@ -153,9 +179,79 @@ class PodcastFactory {
   public selectTrackForProcessing(trackId: string): void {
     const track = this.audioMixer.getAudioTracks().find(t => t.id === trackId);
     this.audioProcessorUI.setSelectedTrack(track || null);
-    
+
     if (track) {
       console.log(`Selected track for processing: ${track.filename}`);
+    }
+  }
+
+  private setupVideoIntegration(): void {
+    // Set up video generator event handlers
+    this.videoGenerator.setEventHandlers({
+      onVideoGenerated: (blob: Blob) => {
+        console.log('Video generated:', blob.size, 'bytes');
+        // Enable download or further processing
+      },
+      onProgress: (progress: number) => {
+        console.log('Video generation progress:', progress + '%');
+      },
+      onError: (error: Error) => {
+        console.error('Video generation error:', error);
+        alert('Video generation failed: ' + error.message);
+      }
+    });
+
+    // Set up video exporter event handlers
+    this.videoExporter.setEventHandlers({
+      onProgress: (progress) => {
+        console.log('Export progress:', progress);
+      },
+      onComplete: (result) => {
+        console.log('Export completed:', result);
+        this.videoExporter.downloadResult(result);
+      },
+      onError: (error) => {
+        console.error('Export error:', error);
+        alert('Export failed: ' + error.message);
+      }
+    });
+
+    console.log('Video integration set up');
+  }
+
+  public async generateVideoWithCurrentAudio(): Promise<void> {
+    try {
+      const audioTracks = this.audioMixer.getAudioTracks();
+
+      if (audioTracks.length === 0) {
+        alert('Please add some audio tracks first');
+        return;
+      }
+
+      // Switch to video generator tool
+      this.showTool('video-generator');
+
+      // Generate video with synchronized audio
+      const result = await this.audioVideoSync.generateVideoWithAudio(audioTracks);
+
+      // Export the final video
+      await this.videoExporter.exportVideo(
+        result.videoBlob,
+        this.audioVideoSync.exportAudioAsWAV(result.audioBuffer),
+        {
+          format: 'webm',
+          quality: 'medium',
+          resolution: { width: 1920, height: 1080 },
+          frameRate: 30,
+          bitrate: 5000000
+        },
+        'podcast-with-audio'
+      );
+
+      console.log('Video with audio generated successfully');
+    } catch (error) {
+      console.error('Error generating video with audio:', error);
+      alert('Failed to generate video: ' + (error as Error).message);
     }
   }
 }
