@@ -338,17 +338,25 @@ export class VideoGeneratorUI {
   private setupEventListeners(): void {
     // Quick action buttons
     this.setupQuickActions();
-    
+
     // Background type change
     const backgroundType = this.container.querySelector('#background-type') as HTMLSelectElement;
     backgroundType?.addEventListener('change', () => this.handleBackgroundTypeChange());
+
+    // File upload
+    const backgroundFile = this.container.querySelector('#background-file') as HTMLInputElement;
+    backgroundFile?.addEventListener('change', () => this.handleFileUpload());
+
+    // Apply background button
+    const applyBackgroundBtn = this.container.querySelector('#apply-background-btn');
+    applyBackgroundBtn?.addEventListener('click', () => this.applyBackground());
 
     // Effect sliders
     this.setupEffectSliders();
 
     // Preview and generation buttons
     const previewBtn = this.container.querySelector('#preview-btn');
-    previewBtn?.addEventListener('click', () => this.videoGenerator.previewVideo());
+    previewBtn?.addEventListener('click', () => this.handlePreview());
 
     const generateBtn = this.container.querySelector('#generate-btn');
     generateBtn?.addEventListener('click', () => this.videoGenerator.generateVideo());
@@ -409,6 +417,137 @@ export class VideoGeneratorUI {
     if (presetSelect) {
       presetSelect.value = presetName;
       presetSelect.dispatchEvent(new Event('change'));
+    }
+  }
+
+  private async handleFileUpload(): Promise<void> {
+    const fileInput = this.container.querySelector('#background-file') as HTMLInputElement;
+    const file = fileInput.files?.[0];
+
+    if (!file) return;
+
+    try {
+      const url = URL.createObjectURL(file);
+
+      if (file.type.startsWith('image/')) {
+        const image = await this.videoGenerator.getVideoProcessor().loadImage(url);
+        this.videoGenerator.getVideoProcessor().clearCanvas();
+        this.videoGenerator.getVideoProcessor().drawImageToCanvas(image);
+        this.updatePreviewCanvas();
+        console.log('Background image loaded');
+      } else if (file.type.startsWith('video/')) {
+        await this.videoGenerator.getVideoProcessor().loadVideo(url);
+        console.log('Background video loaded');
+      }
+
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error loading background file:', error);
+      alert('Error loading file: ' + (error as Error).message);
+    }
+  }
+
+  private applyBackground(): void {
+    const backgroundType = this.container.querySelector('#background-type') as HTMLSelectElement;
+
+    if (backgroundType.value === 'color') {
+      const colorInput = this.container.querySelector('#background-color') as HTMLInputElement;
+      const color = colorInput.value;
+
+      const canvas = this.videoGenerator.getVideoProcessor().getCanvas();
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      this.updatePreviewCanvas();
+      console.log('Applied color background:', color);
+    } else if (backgroundType.value === 'gradient') {
+      this.applyGradientBackground();
+    }
+  }
+
+  private applyGradientBackground(): void {
+    const startColor = (this.container.querySelector('#gradient-start') as HTMLInputElement).value;
+    const endColor = (this.container.querySelector('#gradient-end') as HTMLInputElement).value;
+    const direction = (this.container.querySelector('#gradient-direction') as HTMLSelectElement).value;
+
+    const canvas = this.videoGenerator.getVideoProcessor().getCanvas();
+    const ctx = canvas.getContext('2d')!;
+
+    let gradient: CanvasGradient;
+
+    switch (direction) {
+      case 'horizontal':
+        gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+        break;
+      case 'vertical':
+        gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        break;
+      case 'diagonal':
+        gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        break;
+      case 'radial':
+        gradient = ctx.createRadialGradient(
+          canvas.width / 2, canvas.height / 2, 0,
+          canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) / 2
+        );
+        break;
+      default:
+        gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    }
+
+    gradient.addColorStop(0, startColor);
+    gradient.addColorStop(1, endColor);
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.updatePreviewCanvas();
+    console.log('Applied gradient background');
+  }
+
+  private async handlePreview(): Promise<void> {
+    const backgroundType = this.container.querySelector('#background-type') as HTMLSelectElement;
+
+    if (backgroundType.value === 'color') {
+      const colorInput = this.container.querySelector('#background-color') as HTMLInputElement;
+      await this.videoGenerator.previewVideo(colorInput.value);
+    } else if (backgroundType.value === 'gradient') {
+      // Apply gradient first, then preview
+      this.applyGradientBackground();
+    } else if (backgroundType.value === 'image') {
+      const fileInput = this.container.querySelector('#background-file') as HTMLInputElement;
+      const file = fileInput.files?.[0];
+
+      if (file && file.type.startsWith('image/')) {
+        try {
+          const url = URL.createObjectURL(file);
+          const image = await this.videoGenerator.getVideoProcessor().loadImage(url);
+          await this.videoGenerator.previewVideo(undefined, image);
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error('Error loading image for preview:', error);
+          alert('Error loading image: ' + (error as Error).message);
+        }
+      } else {
+        alert('Please select an image file first');
+      }
+    }
+
+    this.updatePreviewCanvas();
+  }
+
+  private updatePreviewCanvas(): void {
+    const canvas = this.videoGenerator.getVideoProcessor().getCanvas();
+    const previewCanvas = this.container.querySelector('#video-preview-canvas') as HTMLCanvasElement;
+
+    if (previewCanvas && canvas) {
+      const ctx = previewCanvas.getContext('2d');
+      if (ctx) {
+        previewCanvas.width = canvas.width;
+        previewCanvas.height = canvas.height;
+        ctx.drawImage(canvas, 0, 0);
+      }
     }
   }
 
