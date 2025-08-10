@@ -41,7 +41,7 @@
                         <div id="audio-mixer-panel" class="tool-panel active">
                             <h3>Audio Mixer</h3>
                             <div id="timeline-container">
-                                <canvas id="timeline-canvas" width="800" height="800"></canvas>
+                                <canvas id="timeline-canvas" height="800"></canvas>
                             </div>
                             <div class="uk-margin-top">
                                 <div class="uk-button-group uk-margin-right">
@@ -50,16 +50,20 @@
                                     <button class="uk-button uk-button-secondary" id="stop-preview">Stop</button>
                                     <button class="uk-button uk-button-default" id="export-audio">Export</button>
                                 </div>
-                                <div class="uk-button-group">
+                                <div class="uk-button-group uk-margin-right">
                                     <button class="uk-button uk-button-default" id="zoom-out" title="Zoom Out">-</button>
                                     <button class="uk-button uk-button-default" id="zoom-reset" title="Reset Zoom">100%</button>
                                     <button class="uk-button uk-button-default" id="zoom-in" title="Zoom In">+</button>
+                                </div>
+                                <div class="uk-button-group">
+                                    <button class="uk-button uk-button-primary" id="snap-toggle" title="Toggle Snapping">🧲 Snap</button>
                                 </div>
                             </div>
                             <div class="uk-margin-small-top">
                                 <small class="uk-text-muted">
                                     Mouse wheel: horizontal scroll | Shift+wheel: vertical scroll | Ctrl+wheel: zoom<br>
-                                    Arrow keys: navigate | Drag tracks: move between lanes | Right-click: context menu
+                                    Arrow keys: navigate | Drag tracks: move between lanes | Right-click: context menu<br>
+                                    🧲 Snapping: Auto-align clips to existing audio and timeline markers
                                 </small>
                             </div>
                         </div>
@@ -71,7 +75,125 @@
 
                         <div id="audio-processor-panel" class="tool-panel">
                             <h3>Audio Processor</h3>
-                            <p>Normalize audio and apply effects</p>
+                            
+                            <!-- Audio Analysis -->
+                            <div class="uk-card uk-card-default uk-card-body uk-margin">
+                                <h4 class="uk-card-title">Audio Analysis</h4>
+                                <div class="uk-grid-small" uk-grid>
+                                    <div class="uk-width-1-2">
+                                        <label class="uk-form-label">Peak Level:</label>
+                                        <div id="peak-level" class="level-display">-∞ dB</div>
+                                    </div>
+                                    <div class="uk-width-1-2">
+                                        <label class="uk-form-label">RMS Level:</label>
+                                        <div id="rms-level" class="level-display">-∞ dB</div>
+                                    </div>
+                                </div>
+                                <button class="uk-button uk-button-secondary uk-button-small" id="analyze-audio">Analyze Selected Track</button>
+                            </div>
+
+                            <!-- Normalization -->
+                            <div class="uk-card uk-card-default uk-card-body uk-margin">
+                                <h4 class="uk-card-title">
+                                    <label><input class="uk-checkbox" type="checkbox" id="normalize-enabled"> Normalization</label>
+                                </h4>
+                                <div class="uk-grid-small" uk-grid>
+                                    <div class="uk-width-1-2">
+                                        <label class="uk-form-label">Target Level (dB):</label>
+                                        <input class="uk-input uk-form-small" type="range" id="normalize-target" min="-20" max="0" step="0.1" value="-3">
+                                        <span id="normalize-target-value">-3.0 dB</span>
+                                    </div>
+                                    <div class="uk-width-1-2">
+                                        <label class="uk-form-label">Peak Limit (dB):</label>
+                                        <input class="uk-input uk-form-small" type="range" id="normalize-peak" min="-6" max="0" step="0.1" value="-1">
+                                        <span id="normalize-peak-value">-1.0 dB</span>
+                                    </div>
+                                </div>
+                                <button class="uk-button uk-button-primary uk-button-small" id="apply-normalize">Apply Normalization</button>
+                            </div>
+
+                            <!-- EQ Controls -->
+                            <div class="uk-card uk-card-default uk-card-body uk-margin">
+                                <h4 class="uk-card-title">
+                                    <label><input class="uk-checkbox" type="checkbox" id="eq-enabled"> 3-Band EQ</label>
+                                </h4>
+                                <div class="eq-controls">
+                                    <div class="eq-band">
+                                        <label class="uk-form-label">Low (200Hz)</label>
+                                        <input class="uk-input uk-form-small eq-slider" type="range" id="eq-low" min="-12" max="12" step="0.5" value="0">
+                                        <span id="eq-low-value">0.0 dB</span>
+                                    </div>
+                                    <div class="eq-band">
+                                        <label class="uk-form-label">Mid (1kHz)</label>
+                                        <input class="uk-input uk-form-small eq-slider" type="range" id="eq-mid" min="-12" max="12" step="0.5" value="0">
+                                        <span id="eq-mid-value">0.0 dB</span>
+                                    </div>
+                                    <div class="eq-band">
+                                        <label class="uk-form-label">High (5kHz)</label>
+                                        <input class="uk-input uk-form-small eq-slider" type="range" id="eq-high" min="-12" max="12" step="0.5" value="0">
+                                        <span id="eq-high-value">0.0 dB</span>
+                                    </div>
+                                </div>
+                                <button class="uk-button uk-button-primary uk-button-small" id="reset-eq">Reset EQ</button>
+                            </div>
+
+                            <!-- Compressor -->
+                            <div class="uk-card uk-card-default uk-card-body uk-margin">
+                                <h4 class="uk-card-title">
+                                    <label><input class="uk-checkbox" type="checkbox" id="compressor-enabled"> Compressor</label>
+                                </h4>
+                                <div class="uk-grid-small" uk-grid>
+                                    <div class="uk-width-1-2">
+                                        <label class="uk-form-label">Threshold:</label>
+                                        <input class="uk-input uk-form-small" type="range" id="comp-threshold" min="-40" max="0" step="1" value="-24">
+                                        <span id="comp-threshold-value">-24 dB</span>
+                                    </div>
+                                    <div class="uk-width-1-2">
+                                        <label class="uk-form-label">Ratio:</label>
+                                        <input class="uk-input uk-form-small" type="range" id="comp-ratio" min="1" max="20" step="0.5" value="4">
+                                        <span id="comp-ratio-value">4:1</span>
+                                    </div>
+                                    <div class="uk-width-1-2">
+                                        <label class="uk-form-label">Attack (ms):</label>
+                                        <input class="uk-input uk-form-small" type="range" id="comp-attack" min="0.1" max="100" step="0.1" value="3">
+                                        <span id="comp-attack-value">3.0 ms</span>
+                                    </div>
+                                    <div class="uk-width-1-2">
+                                        <label class="uk-form-label">Release (ms):</label>
+                                        <input class="uk-input uk-form-small" type="range" id="comp-release" min="10" max="1000" step="10" value="250">
+                                        <span id="comp-release-value">250 ms</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Noise Gate -->
+                            <div class="uk-card uk-card-default uk-card-body uk-margin">
+                                <h4 class="uk-card-title">
+                                    <label><input class="uk-checkbox" type="checkbox" id="gate-enabled"> Noise Gate</label>
+                                </h4>
+                                <div class="uk-grid-small" uk-grid>
+                                    <div class="uk-width-1-2">
+                                        <label class="uk-form-label">Threshold:</label>
+                                        <input class="uk-input uk-form-small" type="range" id="gate-threshold" min="-60" max="-10" step="1" value="-40">
+                                        <span id="gate-threshold-value">-40 dB</span>
+                                    </div>
+                                    <div class="uk-width-1-2">
+                                        <label class="uk-form-label">Ratio:</label>
+                                        <input class="uk-input uk-form-small" type="range" id="gate-ratio" min="2" max="20" step="1" value="10">
+                                        <span id="gate-ratio-value">10:1</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Processing Actions -->
+                            <div class="uk-card uk-card-default uk-card-body">
+                                <h4 class="uk-card-title">Processing Actions</h4>
+                                <div class="uk-button-group uk-width-1-1">
+                                    <button class="uk-button uk-button-primary" id="preview-processing">Preview Effects</button>
+                                    <button class="uk-button uk-button-secondary" id="apply-processing">Apply to Track</button>
+                                    <button class="uk-button uk-button-default" id="reset-processing">Reset All</button>
+                                </div>
+                            </div>
                         </div>
 
                         <div id="ai-tools-panel" class="tool-panel">

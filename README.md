@@ -22,11 +22,13 @@ Podcast Factory is a browser-based digital audio workstation (DAW) designed spec
 - **Multiple Formats**: Support for different aspect ratios (16:9, 1:1, 9:16)
 - **Duration Matching**: Automatically match video length to audio duration
 
-### 🔧 Audio Processing *(Coming Soon)*
-- **Audio Normalization**: Automatic level adjustment for consistent volume
-- **Noise Reduction**: Remove background noise and improve audio quality
-- **EQ Controls**: Basic equalizer for frequency adjustment
-- **Compression**: Dynamic range compression for professional sound
+### 🔧 Audio Processing ✅
+- **Audio Normalization**: Automatic level adjustment with target and peak controls
+- **3-Band EQ**: Professional equalizer with Low/Mid/High frequency control
+- **Dynamic Compressor**: Threshold, ratio, attack, and release controls
+- **Noise Gate**: Background noise elimination with adjustable threshold
+- **Real-time Analysis**: Peak and RMS level monitoring
+- **Non-destructive Processing**: Preview effects before applying
 
 ### 🤖 AI-Powered Tools *(Coming Soon)*
 - **NoteGPT Integration**: Convert text to dual persona speech
@@ -78,17 +80,20 @@ The built files will be in the `dist` directory.
    - Click "Add Audio" button or drag files directly onto the timeline
    - Supported formats: MP3, WAV, AAC, OGG
    - Files are automatically assigned to available tracks
+   - Smart positioning with automatic snapping
 
 2. **Timeline Navigation**
    - **Horizontal Scroll**: Mouse wheel or arrow keys (←/→)
    - **Vertical Scroll**: Shift + mouse wheel or arrow keys (↑/↓)
    - **Zoom**: Ctrl + mouse wheel or zoom buttons (+/-/100%)
    - **Home/End**: Jump to beginning/end of timeline
+   - **Full-width Timeline**: Responsive design adapts to screen size
 
 3. **Track Management**
    - **Select Track**: Click on any audio clip
    - **Move Track**: Drag horizontally to change timing
    - **Change Track Lane**: Drag vertically between tracks
+   - **Smart Snapping**: Clips automatically align to existing audio
    - **Right-click Menu**: Access track operations
 
 4. **Context Menu Options**
@@ -97,7 +102,14 @@ The built files will be in the `dist` directory.
    - **✂️ Split Track**: Split track at midpoint
    - **⚙️ Properties**: View track information
 
-5. **Project Management**
+5. **Audio Processing Workflow**
+   - **Select Track**: Click any audio clip to select for processing
+   - **Analyze Audio**: Get peak and RMS level information
+   - **Configure Effects**: Adjust normalization, EQ, compression, noise gate
+   - **Preview Processing**: Hear effects before applying
+   - **Apply Changes**: Process audio with selected effects
+
+6. **Project Management**
    - **New Project**: Clear all tracks and start fresh
    - **Save Project**: Export project as JSON file
    - **Open Project**: Load previously saved project
@@ -109,10 +121,21 @@ The built files will be in the `dist` directory.
 | `←/→` | Scroll timeline horizontally |
 | `↑/↓` | Scroll tracks vertically |
 | `Ctrl + Mouse Wheel` | Zoom in/out |
+| `Shift + Mouse Wheel` | Scroll tracks vertically |
 | `Home` | Go to timeline start |
 | `End` | Go to timeline end |
 | `Ctrl + Home` | Go to top-left corner |
 | `Ctrl + End` | Go to bottom-right corner |
+
+### Audio Processing Controls
+
+| Control | Function |
+|---------|----------|
+| **Normalization** | Adjust audio levels to target dB |
+| **3-Band EQ** | Low (200Hz), Mid (1kHz), High (5kHz) |
+| **Compressor** | Threshold, ratio, attack, release |
+| **Noise Gate** | Remove background noise below threshold |
+| **🧲 Snap Toggle** | Enable/disable automatic clip alignment |
 
 ## 🏗️ Technical Architecture
 
@@ -120,24 +143,29 @@ The built files will be in the `dist` directory.
 - **TypeScript**: Type-safe JavaScript development
 - **Vite**: Fast build tool and development server
 - **UIKit**: Responsive CSS framework
-- **Web Audio API**: Real-time audio processing
+- **Web Audio API**: Real-time audio processing and effects
 - **Canvas API**: Timeline visualization and waveform rendering
+- **HTML5 Audio**: Audio file loading and playback
 
 ### Project Structure
 ```
 src/
 ├── components/
-│   ├── audio-editor/     # Audio mixing components
+│   ├── audio-editor/     # Audio mixing and processing components
+│   │   ├── AudioMixer.ts           # 12-track timeline editor
+│   │   └── AudioProcessorUI.ts     # Audio effects interface
 │   ├── video-generator/  # Video creation tools
 │   └── ai-tools/         # AI integration components
 ├── services/
 │   ├── audio-processing/ # Audio manipulation services
+│   │   └── AudioProcessor.ts       # Normalization, EQ, compression
 │   ├── video-processing/ # Video generation services
 │   └── ai-integration/   # AI API integrations
 ├── utils/
 │   ├── file-handlers/    # File I/O utilities
 │   └── audio-utils/      # Audio processing helpers
 ├── types/                # TypeScript type definitions
+│   └── project.ts        # Audio clip and project interfaces
 └── styles/               # CSS stylesheets
 ```
 
@@ -155,6 +183,42 @@ interface AudioClip {
   volume: number;
   trackIndex: number;
   effects: AudioEffect[];
+  waveformData?: number[];
+}
+```
+
+#### AudioProcessingSettings
+```typescript
+interface AudioProcessingSettings {
+  normalize: {
+    enabled: boolean;
+    targetLevel: number; // dB
+    peakLevel: number;   // dB
+  };
+  eq: {
+    enabled: boolean;
+    lowGain: number;     // dB
+    midGain: number;     // dB
+    highGain: number;    // dB
+    lowFreq: number;     // Hz
+    midFreq: number;     // Hz
+    highFreq: number;    // Hz
+  };
+  compressor: {
+    enabled: boolean;
+    threshold: number;   // dB
+    ratio: number;
+    attack: number;      // seconds
+    release: number;     // seconds
+    makeupGain: number;  // dB
+  };
+  noiseGate: {
+    enabled: boolean;
+    threshold: number;   // dB
+    ratio: number;
+    attack: number;      // seconds
+    release: number;     // seconds
+  };
 }
 ```
 
@@ -201,17 +265,22 @@ interface Project {
 ## 🗺️ Roadmap
 
 ### Phase 1: Core Audio Mixing ✅
-- [x] Multi-track timeline interface
-- [x] Drag and drop functionality
-- [x] Basic audio file support
-- [x] Project save/load
-- [x] Context menu operations
+- [x] 12-track timeline interface with full-width design
+- [x] Advanced drag and drop with smart snapping
+- [x] Multi-format audio file support (MP3, WAV, AAC, OGG)
+- [x] Project save/load functionality
+- [x] Context menu operations (delete, duplicate, split, properties)
+- [x] Horizontal and vertical scrolling with zoom controls
+- [x] Professional timeline with responsive design
 
-### Phase 2: Audio Processing *(In Progress)*
-- [ ] Audio normalization
-- [ ] Noise reduction
-- [ ] EQ controls
-- [ ] Real-time effects
+### Phase 2: Audio Processing ✅
+- [x] Audio normalization with target and peak controls
+- [x] 3-band EQ (Low/Mid/High frequency control)
+- [x] Dynamic range compressor with full parameter control
+- [x] Noise gate for background noise elimination
+- [x] Real-time audio analysis (peak and RMS levels)
+- [x] Non-destructive processing with preview functionality
+- [x] Professional Web Audio API implementation
 
 ### Phase 3: Video Generation *(Planned)*
 - [ ] Image-to-video conversion
@@ -260,16 +329,31 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Ensure files are in supported formats (MP3, WAV, AAC, OGG)
 - Check browser console for error messages
 - Verify Web Audio API support in your browser
+- Try smaller file sizes (under 50MB recommended)
 
 **Performance issues with large files**
-- Use compressed audio formats
-- Close other browser tabs
-- Consider splitting large files
+- Use compressed audio formats (MP3 recommended)
+- Close other browser tabs to free memory
+- Consider splitting large files into smaller segments
+- Reduce zoom level for better performance
 
 **Timeline not responding**
-- Refresh the page
+- Refresh the page and reload project
 - Check if JavaScript is enabled
-- Clear browser cache
+- Clear browser cache and cookies
+- Ensure sufficient RAM (4GB+ recommended)
+
+**Audio processing not working**
+- Select a track first before applying effects
+- Check that Web Audio API is supported
+- Verify audio file is properly loaded
+- Try refreshing the page if effects don't apply
+
+**Snapping too sensitive/not working**
+- Use the 🧲 Snap toggle button to enable/disable
+- Snapping works within 0.5 second tolerance
+- Try zooming in for more precise control
+- Check that tracks are on the same lane for snapping
 
 ### Getting Help
 
@@ -280,10 +364,26 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- UIKit for the responsive CSS framework
-- Web Audio API for audio processing capabilities
-- Vite for the excellent development experience
-- TypeScript for type safety and developer experience
+- **UIKit** for the responsive CSS framework and professional UI components
+- **Web Audio API** for real-time audio processing and effects capabilities
+- **Vite** for the excellent development experience and fast builds
+- **TypeScript** for type safety and enhanced developer experience
+- **Canvas API** for high-performance timeline rendering
+- **HTML5 Audio** for cross-browser audio file support
+
+## 📈 Performance Notes
+
+### Recommended System Requirements
+- **RAM**: 4GB minimum, 8GB recommended
+- **Browser**: Chrome 66+, Firefox 60+, Safari 14+, Edge 79+
+- **Audio Files**: Under 50MB per file for optimal performance
+- **Concurrent Tracks**: Up to 12 tracks with real-time processing
+
+### Optimization Tips
+- Use compressed audio formats (MP3, AAC) for better performance
+- Close unnecessary browser tabs when working with large projects
+- Enable hardware acceleration in browser settings
+- Use zoom controls to focus on specific timeline sections
 
 ---
 

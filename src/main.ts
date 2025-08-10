@@ -1,12 +1,14 @@
 import { AudioMixer } from './components/audio-editor/AudioMixer';
 import { VideoGenerator } from './components/video-generator/VideoGenerator';
 import { AudioProcessor } from './services/audio-processing/AudioProcessor';
+import { AudioProcessorUI } from './components/audio-editor/AudioProcessorUI';
 import { AITools } from './components/ai-tools/AITools';
 
 class PodcastFactory {
   private audioMixer: AudioMixer;
   private videoGenerator: VideoGenerator;
   private audioProcessor: AudioProcessor;
+  private audioProcessorUI: AudioProcessorUI;
   private aiTools: AITools;
   private currentTool: string = 'audio-mixer';
 
@@ -18,6 +20,7 @@ class PodcastFactory {
     this.audioMixer = new AudioMixer();
     this.videoGenerator = new VideoGenerator();
     this.audioProcessor = new AudioProcessor();
+    this.audioProcessorUI = new AudioProcessorUI();
     this.aiTools = new AITools();
 
     this.setupEventListeners();
@@ -58,6 +61,13 @@ class PodcastFactory {
     document.getElementById('zoom-reset')?.addEventListener('click', () => {
       this.audioMixer.resetZoom();
     });
+
+    document.getElementById('snap-toggle')?.addEventListener('click', () => {
+      this.audioMixer.toggleSnap();
+    });
+
+    // Connect audio mixer selection to processor UI
+    this.setupAudioProcessorIntegration();
   }
 
   private showTool(toolName: string): void {
@@ -130,6 +140,23 @@ class PodcastFactory {
     a.download = 'podcast-project.json';
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  private setupAudioProcessorIntegration(): void {
+    // Connect track selection from audio mixer to processor UI
+    this.audioMixer.setTrackSelectionCallback((track) => {
+      this.audioProcessorUI.setSelectedTrack(track);
+    });
+    console.log('Audio processor integration set up');
+  }
+
+  public selectTrackForProcessing(trackId: string): void {
+    const track = this.audioMixer.getAudioTracks().find(t => t.id === trackId);
+    this.audioProcessorUI.setSelectedTrack(track || null);
+    
+    if (track) {
+      console.log(`Selected track for processing: ${track.filename}`);
+    }
   }
 }
 

@@ -7,6 +7,7 @@ export class AudioMixer {
   private audioContext: AudioContext;
   private isPlaying: boolean = false;
   private selectedTrackId: string | null = null;
+  private onTrackSelected: ((track: AudioClip | null) => void) | null = null;
   private isDragging: boolean = false;
   private dragStartX: number = 0;
   private dragStartY: number = 0;
@@ -23,12 +24,17 @@ export class AudioMixer {
   private trackHeight: number = 60;
   private trackSpacing: number = 10;
   private timelineHeight: number = 30;
+  private snapEnabled: boolean = true;
+  private snapTolerance: number = 0.5; // seconds
+  private snapIndicatorX: number = -1;
+  private resizeTimeout: number = 0;
 
   constructor() {
     this.canvas = document.getElementById('timeline-canvas') as HTMLCanvasElement;
     this.ctx = this.canvas.getContext('2d')!;
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     
+    this.setupCanvasSize();
     this.setupScrollContainer();
     this.setupEventListeners();
     this.createContextMenu();
@@ -95,6 +101,10 @@ export class AudioMixer {
     document.addEventListener('keydown', (e) => {
       this.handleKeyDown(e);
     });
+
+    window.addEventListener('resize', () => {
+      this.handleResize();
+    });
   }
 
   private addAudioFile(): void {
@@ -121,13 +131,15 @@ export class AudioMixer {
       const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
       
       const trackIndex = this.getAvailableTrackIndex();
+      const smartStartTime = this.findBestSnapPosition(trackIndex, '');
+      
       const audioClip: AudioClip = {
         id: Date.now().toString(),
         filename: file.name,
         duration: audioBuffer.duration,
         filePath: URL.createObjectURL(file),
-        startTime: 0,
-        endTime: audioBuffer.duration,
+        startTime: smartStartTime,
+        endTime: smartStartTime + audioBuffer.duration,
         volume: 1.0,
         effects: [],
         trackIndex: trackIndex
@@ -165,8 +177,14 @@ export class AudioMixer {
     if (clickedTrack) {
       this.selectedTrackId = clickedTrack.id;
       console.log(`Selected track: ${clickedTrack.filename}`);
+      if (this.onTrackSelected) {
+        this.onTrackSelected(clickedTrack);
+      }
     } else {
       this.selectedTrackId = null;
+      if (this.onTrackSelected) {
+        this.onTrackSelected(null);
+      }
     }
     
     this.draw();
@@ -221,17 +239,28 @@ export class AudioMixer {
         const timePerPixel = this.getTimePerPixel();
         const deltaTime = deltaX * timePerPixel;
         
-        const newStartTime = Math.max(0, track.startTime + deltaTime);
+        let newStartTime = Math.max(0, track.startTime + deltaTime);
         const duration = track.endTime - track.startTime;
-        
-        track.startTime = newStartTime;
-        track.endTime = newStartTime + duration;
         
         // Update vertical position (track lane)
         const newTrackIndex = this.getTrackIndexAtY(y + this.scrollY);
         if (newTrackIndex >= 0 && newTrackIndex < this.maxTracks) {
           track.trackIndex = newTrackIndex;
         }
+        
+        // Apply snapping if enabled
+        if (this.snapEnabled) {
+          const snapResult = this.getSnapPosition(newStartTime, track.trackIndex || 0, track.id);
+          if (snapResult.shouldSnap) {
+            newStartTime = snapResult.snapTime;
+            this.snapIndicatorX = this.timeToPixel(snapResult.snapTime) - this.scrollX;
+          } else {
+            this.snapIndicatorX = -1;
+          }
+        }
+        
+        track.startTime = newStartTime;
+        track.endTime = newStartTime + duration;
         
         this.dragStartX = x;
         this.dragStartY = y;
@@ -241,6 +270,7 @@ export class AudioMixer {
     } else {
       const hoveredTrack = this.getTrackAtPosition(x, y);
       this.canvas.style.cursor = hoveredTrack ? 'grab' : 'default';
+      this.snapIndicatorX = -1;
     }
   }
 
@@ -249,11 +279,74 @@ export class AudioMixer {
     return Math.floor(adjustedY / (this.trackHeight + this.trackSpacing));
   }
 
+  private getSnapPosition(proposedStartTime: number, trackIndex: number, excludeTrackId: string): { shouldSnap: boolean; snapTime: number } {
+    const tracksOnSameLane = this.audioTracks.filter(t => 
+      (t.trackIndex || 0) === trackIndex && t.id !== excludeTrackId
+    );
+    
+    if (tracksOnSameLane.length === 0) {
+      return { shouldSnap: false, snapTime: proposedStartTime };
+    }
+    
+    // Sort tracks by start time
+    tracksOnSameLane.sort((a, b) => a.startTime - b.startTime);
+    
+    // Check for snapping to the end of existing clips
+    for (const existingTrack of tracksOnSameLane) {
+      const distanceToEnd = Math.abs(proposedStartTime - existingTrack.endTime);
+      
+      if (distanceToEnd <= this.snapTolerance) {
+        return { shouldSnap: true, snapTime: existingTrack.endTime };
+      }
+    }
+    
+    // Check for snapping to the beginning of existing clips
+    for (const existingTrack of tracksOnSameLane) {
+      const distanceToStart = Math.abs(proposedStartTime - existingTrack.startTime);
+      
+      if (distanceToStart <= this.snapTolerance) {
+        return { shouldSnap: true, snapTime: existingTrack.startTime };
+      }
+    }
+    
+    // Check for snapping to timeline markers (every 5 seconds)
+    const nearestMarker = Math.round(proposedStartTime / 5) * 5;
+    const distanceToMarker = Math.abs(proposedStartTime - nearestMarker);
+    
+    if (distanceToMarker <= this.snapTolerance) {
+      return { shouldSnap: true, snapTime: nearestMarker };
+    }
+    
+    return { shouldSnap: false, snapTime: proposedStartTime };
+  }
+
+  private findBestSnapPosition(trackIndex: number, excludeTrackId: string): number {
+    const tracksOnSameLane = this.audioTracks.filter(t => 
+      (t.trackIndex || 0) === trackIndex && t.id !== excludeTrackId
+    );
+    
+    if (tracksOnSameLane.length === 0) {
+      return 0; // Start at beginning if no other tracks
+    }
+    
+    // Sort tracks by start time
+    tracksOnSameLane.sort((a, b) => a.startTime - b.startTime);
+    
+    // Find the latest end time and snap to it
+    const latestTrack = tracksOnSameLane.reduce((latest, current) => 
+      current.endTime > latest.endTime ? current : latest
+    );
+    
+    return latestTrack.endTime;
+  }
+
   private handleMouseUp(e: MouseEvent): void {
     if (this.isDragging) {
       this.isDragging = false;
       this.dragTrackId = null;
+      this.snapIndicatorX = -1;
       this.canvas.style.cursor = 'default';
+      this.draw(); // Redraw to clear snap indicator
       console.log('Track repositioned');
     }
   }
@@ -298,6 +391,7 @@ export class AudioMixer {
     
     this.drawTimeline();
     this.drawAudioTracks();
+    this.drawSnapIndicator();
   }
 
   private drawTimeline(): void {
@@ -409,6 +503,27 @@ export class AudioMixer {
         this.ctx.fillStyle = '#27ae60';
         this.ctx.fillRect(2, y + 2, 3, this.trackHeight - 4);
       }
+    }
+  }
+
+  private drawSnapIndicator(): void {
+    if (this.snapIndicatorX >= 0 && this.isDragging) {
+      this.ctx.strokeStyle = '#e74c3c';
+      this.ctx.lineWidth = 2;
+      this.ctx.setLineDash([5, 5]);
+      
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.snapIndicatorX, this.timelineHeight);
+      this.ctx.lineTo(this.snapIndicatorX, this.canvas.height);
+      this.ctx.stroke();
+      
+      // Reset line dash
+      this.ctx.setLineDash([]);
+      
+      // Draw snap indicator label
+      this.ctx.fillStyle = '#e74c3c';
+      this.ctx.font = '12px Arial';
+      this.ctx.fillText('SNAP', this.snapIndicatorX + 5, this.timelineHeight + 15);
     }
   }
 
@@ -625,6 +740,40 @@ Track Properties:
     }
   }
 
+  private setupCanvasSize(): void {
+    this.resizeCanvas();
+  }
+
+  private resizeCanvas(): void {
+    const container = this.canvas.parentElement;
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+      const containerStyle = window.getComputedStyle(container);
+      
+      // Calculate available width (container width minus padding)
+      const paddingLeft = parseFloat(containerStyle.paddingLeft) || 0;
+      const paddingRight = parseFloat(containerStyle.paddingRight) || 0;
+      const availableWidth = containerRect.width - paddingLeft - paddingRight;
+      
+      // Set canvas dimensions
+      this.canvas.width = Math.floor(availableWidth);
+      
+      // Update scroll limits and redraw
+      this.updateScrollLimits();
+      this.draw();
+      
+      console.log(`Canvas resized to: ${this.canvas.width}x${this.canvas.height}`);
+    }
+  }
+
+  private handleResize(): void {
+    // Debounce resize events
+    clearTimeout(this.resizeTimeout);
+    this.resizeTimeout = setTimeout(() => {
+      this.resizeCanvas();
+    }, 100);
+  }
+
   private handleWheel(e: WheelEvent): void {
     if (e.ctrlKey || e.metaKey) {
       this.handleZoom(e);
@@ -784,5 +933,26 @@ Track Properties:
     this.scrollX = 0;
     this.updateScrollLimits();
     this.draw();
+  }
+
+  public setTrackSelectionCallback(callback: (track: AudioClip | null) => void): void {
+    this.onTrackSelected = callback;
+  }
+
+  public toggleSnap(): void {
+    this.snapEnabled = !this.snapEnabled;
+    const snapButton = document.getElementById('snap-toggle');
+    if (snapButton) {
+      if (this.snapEnabled) {
+        snapButton.classList.remove('uk-button-default');
+        snapButton.classList.add('uk-button-primary');
+        snapButton.innerHTML = '🧲 Snap';
+      } else {
+        snapButton.classList.remove('uk-button-primary');
+        snapButton.classList.add('uk-button-default');
+        snapButton.innerHTML = '🧲 Snap';
+      }
+    }
+    console.log(`Snapping ${this.snapEnabled ? 'enabled' : 'disabled'}`);
   }
 }
