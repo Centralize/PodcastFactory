@@ -213,9 +213,11 @@ export class AudioMixer {
     
     if (this.isDragging && this.dragTrackId) {
       const deltaX = x - this.dragStartX;
+      const deltaY = y - this.dragStartY;
       const track = this.audioTracks.find(t => t.id === this.dragTrackId);
       
       if (track) {
+        // Update horizontal position (time)
         const timePerPixel = this.getTimePerPixel();
         const deltaTime = deltaX * timePerPixel;
         
@@ -225,7 +227,14 @@ export class AudioMixer {
         track.startTime = newStartTime;
         track.endTime = newStartTime + duration;
         
+        // Update vertical position (track lane)
+        const newTrackIndex = this.getTrackIndexAtY(y + this.scrollY);
+        if (newTrackIndex >= 0 && newTrackIndex < this.maxTracks) {
+          track.trackIndex = newTrackIndex;
+        }
+        
         this.dragStartX = x;
+        this.dragStartY = y;
         this.updateScrollLimits();
         this.draw();
       }
@@ -233,6 +242,11 @@ export class AudioMixer {
       const hoveredTrack = this.getTrackAtPosition(x, y);
       this.canvas.style.cursor = hoveredTrack ? 'grab' : 'default';
     }
+  }
+
+  private getTrackIndexAtY(y: number): number {
+    const adjustedY = y - this.timelineHeight - this.trackSpacing;
+    return Math.floor(adjustedY / (this.trackHeight + this.trackSpacing));
   }
 
   private handleMouseUp(e: MouseEvent): void {
@@ -427,6 +441,9 @@ export class AudioMixer {
   public clearProject(): void {
     this.audioTracks = [];
     this.selectedTrackId = null;
+    this.scrollX = 0;
+    this.scrollY = 0;
+    this.updateScrollLimits();
     this.draw();
   }
 
