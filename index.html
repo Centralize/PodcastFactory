@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Podcast Factory</title>
+    <link rel="stylesheet" href="node_modules/uikit/dist/css/uikit.min.css">
+    <link rel="stylesheet" href="src/styles/main.css">
+</head>
+<body>
+    <div id="app">
+        <nav class="uk-navbar-container" uk-navbar>
+            <div class="uk-navbar-left">
+                <a class="uk-navbar-item uk-logo" href="#">Podcast Factory</a>
+            </div>
+            <div class="uk-navbar-right">
+                <ul class="uk-navbar-nav">
+                    <li><a href="#" id="new-project">New Project</a></li>
+                    <li><a href="#" id="open-project">Open</a></li>
+                    <li><a href="#" id="save-project">Save</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="uk-container uk-container-expand uk-margin-top">
+            <div class="uk-grid-collapse" uk-grid>
+                <div class="uk-width-1-4">
+                    <div class="uk-card uk-card-default uk-card-body">
+                        <h3 class="uk-card-title">Tools</h3>
+                        <ul class="uk-nav uk-nav-default">
+                            <li class="uk-active"><a href="#" data-tool="audio-mixer">Audio Mixer</a></li>
+                            <li><a href="#" data-tool="video-generator">Video Generator</a></li>
+                            <li><a href="#" data-tool="audio-processor">Audio Processor</a></li>
+                            <li><a href="#" data-tool="ai-tools">AI Tools</a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="uk-width-3-4">
+                    <div id="workspace" class="uk-card uk-card-default uk-card-body">
+                        <div id="audio-mixer-panel" class="tool-panel active">
+                            <h3>Audio Mixer</h3>
+                            <div id="timeline-container">
+                                <canvas id="timeline-canvas" width="800" height="800"></canvas>
+                            </div>
+                            <div class="uk-margin-top">
+                                <div class="uk-button-group uk-margin-right">
+                                    <button class="uk-button uk-button-primary" id="add-audio">Add Audio</button>
+                                    <button class="uk-button uk-button-secondary" id="play-preview">Play</button>
+                                    <button class="uk-button uk-button-secondary" id="stop-preview">Stop</button>
+                                    <button class="uk-button uk-button-default" id="export-audio">Export</button>
+                                </div>
+                                <div class="uk-button-group">
+                                    <button class="uk-button uk-button-default" id="zoom-out" title="Zoom Out">-</button>
+                                    <button class="uk-button uk-button-default" id="zoom-reset" title="Reset Zoom">100%</button>
+                                    <button class="uk-button uk-button-default" id="zoom-in" title="Zoom In">+</button>
+                                </div>
+                            </div>
+                            <div class="uk-margin-small-top">
+                                <small class="uk-text-muted">
+                                    Use mouse wheel to scroll horizontally, Ctrl+wheel to zoom, arrow keys to navigate
+                                </small>
+                            </div>
+                        </div>
+
+                        <div id="video-generator-panel" class="tool-panel">
+                            <h3>Video Generator</h3>
+                            <p>Add images or video backgrounds to create MP4 files</p>
+                        </div>
+
+                        <div id="audio-processor-panel" class="tool-panel">
+                            <h3>Audio Processor</h3>
+                            <p>Normalize audio and apply effects</p>
+                        </div>
+
+                        <div id="ai-tools-panel" class="tool-panel">
+                            <h3>AI Tools</h3>
+                            <p>Text-to-speech and dual persona generation</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="node_modules/uikit/dist/js/uikit.min.js"></script>
+    <script src="node_modules/uikit/dist/js/uikit-icons.min.js"></script>
+    <script type="module" src="src/main.ts"></script>
+</body>
+</html>

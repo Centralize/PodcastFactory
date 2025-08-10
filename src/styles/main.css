@@ -1,0 +1,132 @@
+:root {
+  --primary-color: #1e87f0;
+  --secondary-color: #32d296;
+  --background-color: #f8f9fa;
+  --text-color: #333;
+  --border-color: #e5e5e5;
+  --timeline-bg: #2c3e50;
+  --waveform-color: #3498db;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.tool-panel {
+  display: none;
+  min-height: 500px;
+}
+
+.tool-panel.active {
+  display: block;
+}
+
+#timeline-container {
+  background-color: var(--timeline-bg);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+#timeline-canvas {
+  background-color: #34495e;
+  border-radius: 4px;
+  cursor: crosshair;
+  width: 100%;
+  max-width: 800px;
+  display: block;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.zoom-level {
+  min-width: 50px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.audio-track {
+  background-color: var(--waveform-color);
+  border-radius: 4px;
+  margin: 5px 0;
+  padding: 10px;
+  cursor: move;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.audio-track:hover {
+  background-color: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.audio-track.selected {
+  border: 2px solid var(--secondary-color);
+  background-color: var(--secondary-color);
+}
+
+.controls-panel {
+  background-color: white;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.waveform-display {
+  height: 60px;
+  background: linear-gradient(to right, #3498db, #2ecc71);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #e74c3c;
+  z-index: 10;
+  transition: left 0.1s linear;
+}
+
+.uk-navbar-container {
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.uk-logo {
+  font-weight: bold;
+  color: var(--primary-color) !important;
+}
+
+@media (max-width: 768px) {
+  .uk-width-1-4 {
+    width: 100% !important;
+  }
+  
+  .uk-width-3-4 {
+    width: 100% !important;
+  }
+  
+  #timeline-canvas {
+    width: 100%;
+    height: 300px;
+  }
+}
